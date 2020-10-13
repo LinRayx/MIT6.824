@@ -8,7 +8,9 @@ package raft
 // test with the original before submitting.
 //
 
-import "testing"
+import (
+	"testing"
+)
 import "fmt"
 import "time"
 import "math/rand"
@@ -93,14 +95,16 @@ func TestBasicAgree2B(t *testing.T) {
 
 	cfg.begin("Test (2B): basic agreement")
 
-	iters := 3
+	iters := 10
 	for index := 1; index < iters+1; index++ {
+
 		nd, _ := cfg.nCommitted(index)
 		if nd > 0 {
 			t.Fatalf("some have committed before Start()")
 		}
-
+		//log.Printf("index: [%d] nd: [%d]\n", index, nd)
 		xindex := cfg.one(index*100, servers, false)
+		//log.Printf("index: [%d] xindex: [%d]\n", index, xindex)
 		if xindex != index {
 			t.Fatalf("got index %v but expected %v", xindex, index)
 		}
@@ -278,12 +282,14 @@ loop:
 				continue loop
 			}
 		}
-
+		//log.Printf("begin check cmds\n")
 		failed := false
 		cmds := []int{}
 		for index := range is {
 			cmd := cfg.wait(index, servers, term)
+			//log.Printf("check try: %d index: %d cmd: %v", try, index, cmd)
 			if ix, ok := cmd.(int); ok {
+				//log.Printf("check ix: %d ok: %v", ix, ok)
 				if ix == -1 {
 					// peers have moved on to later terms
 					// so we can't expect all Start()s to
@@ -296,7 +302,7 @@ loop:
 				t.Fatalf("value %v is not an int", cmd)
 			}
 		}
-
+		//log.Printf("term: %d cmds: %v", term, cmds)
 		if failed {
 			// avoid leaking goroutines
 			go func() {
@@ -693,6 +699,7 @@ func TestFigure82C(t *testing.T) {
 
 	nup := servers
 	for iters := 0; iters < 1000; iters++ {
+		DPrintf("TestFigure82C iters: %d", iters)
 		leader := -1
 		for i := 0; i < servers; i++ {
 			if cfg.rafts[i] != nil {
@@ -725,7 +732,7 @@ func TestFigure82C(t *testing.T) {
 			}
 		}
 	}
-
+	DPrintf("TestFigure82C half")
 	for i := 0; i < servers; i++ {
 		if cfg.rafts[i] == nil {
 			cfg.start1(i)
@@ -739,6 +746,7 @@ func TestFigure82C(t *testing.T) {
 }
 
 func TestUnreliableAgree2C(t *testing.T) {
+	DPrintf("TestUnreliableAgree2C")
 	servers := 5
 	cfg := make_config(t, servers, true)
 	defer cfg.cleanup()
@@ -775,9 +783,10 @@ func TestFigure8Unreliable2C(t *testing.T) {
 	cfg.begin("Test (2C): Figure 8 (unreliable)")
 
 	cfg.one(rand.Int()%10000, 1, true)
-
+	//fmt.Printf("begin iters")
 	nup := servers
 	for iters := 0; iters < 1000; iters++ {
+		//fmt.Printf("begin iters: %d\n", iters)
 		if iters == 200 {
 			cfg.setlongreordering(true)
 		}
@@ -816,7 +825,7 @@ func TestFigure8Unreliable2C(t *testing.T) {
 			cfg.connect(i)
 		}
 	}
-
+	//fmt.Printf("TestFigure8Unreliable2C end")
 	cfg.one(rand.Int()%10000, servers, true)
 
 	cfg.end()

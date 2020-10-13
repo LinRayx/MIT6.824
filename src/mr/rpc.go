@@ -9,6 +9,15 @@ package mr
 import "os"
 import "strconv"
 
+var MAPTASK int = 1
+var REDUCETASK int = 2
+var ALLTASKDONE int = 3
+var MAPING int = 4
+var REDUCING int = 5
+var REGISTERED int = 6
+var MAPFINISHED int = 7
+var REDUCEFINISHED int = 8
+var DUMP int = 9
 //
 // example to show how to declare the arguments
 // and reply for an RPC.
@@ -24,6 +33,23 @@ type ExampleReply struct {
 
 // Add your RPC definitions here.
 
+type WorkArgs struct {
+	ReduceNumber int
+	MapNumber int
+	Intermediata []string
+	WorkerId int
+}
+
+type WorkReply struct {
+	Filename string
+	MapNumber int
+	ReduceNumber int
+	ReduceFiles []string
+	NReduce int
+	Status int
+	WorkerId int
+	Inv int
+}
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the master.

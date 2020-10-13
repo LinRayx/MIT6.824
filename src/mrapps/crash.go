@@ -8,7 +8,7 @@ package main
 // go build -buildmode=plugin crash.go
 //
 
-import "../mr"
+import "src/mr"
 import crand "crypto/rand"
 import "math/big"
 import "strings"
@@ -28,6 +28,7 @@ func maybeCrash() {
 		maxms := big.NewInt(10 * 1000)
 		ms, _ := crand.Int(crand.Reader, maxms)
 		time.Sleep(time.Duration(ms.Int64()) * time.Millisecond)
+
 	}
 }
 

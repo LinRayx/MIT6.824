@@ -49,7 +49,9 @@ package labrpc
 //   pass svc to srv.AddService()
 //
 
-import "../labgob"
+import (
+	"src/labgob"
+)
 import "bytes"
 import "reflect"
 import "sync"
@@ -446,7 +448,8 @@ func MakeService(rcvr interface{}) *Service {
 	svc := &Service{}
 	svc.typ = reflect.TypeOf(rcvr)
 	svc.rcvr = reflect.ValueOf(rcvr)
-	svc.name = reflect.Indirect(svc.rcvr).Type().Name()
+	svc.name = reflect.Indirect(svc.rcvr).Type().Name() // Raft
+	//log.Fatal(svc.name)
 	svc.methods = map[string]reflect.Method{}
 
 	for m := 0; m < svc.typ.NumMethod(); m++ {

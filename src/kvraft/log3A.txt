@@ -1,0 +1,139 @@
+Test: one client (3A) ...
+2020/10/10 20:58:59 Iteration 0
+2020/10/10 20:59:05 Iteration 1
+2020/10/10 20:59:10 Iteration 2
+  ... Passed --  16.4  5   711   62
+Test: many clients (3A) ...
+2020/10/10 20:59:16 Iteration 0
+2020/10/10 20:59:22 Iteration 1
+2020/10/10 20:59:28 Iteration 2
+  ... Passed --  18.5  5  1100  335
+Test: unreliable net, many clients (3A) ...
+2020/10/10 20:59:34 Iteration 0
+2020/10/10 20:59:42 Iteration 1
+2020/10/10 20:59:51 Iteration 2
+  ... Passed --  23.8  5  1533  172
+Test: concurrent append to same key, unreliable (3A) ...
+  ... Passed --   7.6  3   259   52
+Test: progress in majority (3A) ...
+2020/10/10 21:00:06 partition servers into: [0 1 2] [4 3]
+  ... Passed --   2.3  5  2369    2
+Test: no progress in minority (3A) ...
+  ... Passed --   1.6  5  4507    3
+Test: completion after heal (3A) ...
+  ... Passed --   2.5  5   180    3
+Test: partitions, one client (3A) ...
+2020/10/10 21:00:13 Iteration 0
+2020/10/10 21:00:14 partition servers into: [2 4] [0 1 3]
+2020/10/10 21:00:15 partition servers into: [0 1 3 4] [2]
+2020/10/10 21:00:16 partition servers into: [2] [0 1 3 4]
+2020/10/10 21:00:17 partition servers into: [] [0 1 2 3 4]
+2020/10/10 21:00:18 partition servers into: [0 3] [1 2 4]
+2020/10/10 21:00:22 Iteration 1
+2020/10/10 21:00:23 partition servers into: [1 2 3 4] [0]
+2020/10/10 21:00:24 partition servers into: [1 3 4] [0 2]
+2020/10/10 21:00:25 partition servers into: [0 1 2 3] [4]
+2020/10/10 21:00:26 partition servers into: [0 2 4] [1 3]
+2020/10/10 21:00:27 partition servers into: [0] [1 2 3 4]
+2020/10/10 21:00:33 Iteration 2
+2020/10/10 21:00:34 partition servers into: [1 3 4] [0 2]
+2020/10/10 21:00:35 partition servers into: [2 3] [0 1 4]
+2020/10/10 21:00:36 partition servers into: [0 1 3 4] [2]
+2020/10/10 21:00:37 partition servers into: [1 2 4] [0 3]
+2020/10/10 21:00:38 partition servers into: [1 2] [0 3 4]
+  ... Passed --  30.5  5  8070   24
+Test: partitions, many clients (3A) ...
+2020/10/10 21:00:43 Iteration 0
+2020/10/10 21:00:44 partition servers into: [0 1] [2 3 4]
+2020/10/10 21:00:45 partition servers into: [0 1 4] [2 3]
+2020/10/10 21:00:46 partition servers into: [2 3] [0 1 4]
+2020/10/10 21:00:48 partition servers into: [0 1] [2 3 4]
+2020/10/10 21:00:49 partition servers into: [1 3] [0 2 4]
+2020/10/10 21:00:53 Iteration 1
+2020/10/10 21:00:54 partition servers into: [2 4] [0 1 3]
+2020/10/10 21:00:55 partition servers into: [] [0 1 2 3 4]
+2020/10/10 21:00:56 partition servers into: [0 4] [1 2 3]
+2020/10/10 21:00:57 partition servers into: [0 2 3 4] [1]
+2020/10/10 21:00:58 partition servers into: [0 4] [1 2 3]
+2020/10/10 21:01:02 Iteration 2
+2020/10/10 21:01:03 partition servers into: [0 1] [2 3 4]
+2020/10/10 21:01:04 partition servers into: [0 1 3] [2 4]
+2020/10/10 21:01:05 partition servers into: [0 1 3] [2 4]
+2020/10/10 21:01:06 partition servers into: [1 3 4] [0 2]
+2020/10/10 21:01:08 partition servers into: [2 3] [0 1 4]
+  ... Passed --  30.4  5 12085  126
+Test: restarts, one client (3A) ...
+2020/10/10 21:01:14 Iteration 0
+labgob warning: Decoding into a non-default variable/field int may not work
+2020/10/10 21:01:24 Iteration 1
+2020/10/10 21:01:35 Iteration 2
+  ... Passed --  30.4  5  1195   72
+Test: restarts, many clients (3A) ...
+2020/10/10 21:01:44 Iteration 0
+2020/10/10 21:01:55 Iteration 1
+2020/10/10 21:02:05 Iteration 2
+  ... Passed --  30.9  5  1597  327
+Test: unreliable net, restarts, many clients (3A) ...
+2020/10/10 21:02:15 Iteration 0
+2020/10/10 21:02:27 Iteration 1
+2020/10/10 21:02:39 Iteration 2
+  ... Passed --  34.5  5  1980  148
+Test: restarts, partitions, many clients (3A) ...
+2020/10/10 21:02:49 Iteration 0
+2020/10/10 21:02:50 partition servers into: [0 1 2 3] [4]
+2020/10/10 21:02:51 partition servers into: [0 2] [1 3 4]
+2020/10/10 21:02:52 partition servers into: [0 2 4] [1 3]
+2020/10/10 21:02:54 partition servers into: [0 2 4] [1 3]
+2020/10/10 21:02:55 partition servers into: [0 1 2 3 4] []
+2020/10/10 21:03:02 Iteration 1
+2020/10/10 21:03:03 partition servers into: [2] [0 1 3 4]
+2020/10/10 21:03:05 partition servers into: [1 3 4] [0 2]
+2020/10/10 21:03:06 partition servers into: [2] [0 1 3 4]
+2020/10/10 21:03:07 partition servers into: [0 1 4] [2 3]
+2020/10/10 21:03:08 partition servers into: [1] [0 2 3 4]
+2020/10/10 21:03:14 Iteration 2
+2020/10/10 21:03:15 partition servers into: [0] [1 2 3 4]
+2020/10/10 21:03:16 partition servers into: [0] [1 2 3 4]
+2020/10/10 21:03:17 partition servers into: [0] [1 2 3 4]
+2020/10/10 21:03:18 partition servers into: [0 2 3] [1 4]
+2020/10/10 21:03:19 partition servers into: [0 1] [2 3 4]
+  ... Passed --  38.0  5  9490  198
+Test: unreliable net, restarts, partitions, many clients (3A) ...
+2020/10/10 21:03:27 Iteration 0
+2020/10/10 21:03:28 partition servers into: [1 2 4] [0 3]
+2020/10/10 21:03:29 partition servers into: [2 4] [0 1 3]
+2020/10/10 21:03:31 partition servers into: [2 3 4] [0 1]
+2020/10/10 21:03:32 partition servers into: [1] [0 2 3 4]
+2020/10/10 21:03:33 partition servers into: [1 2 3 4] [0]
+2020/10/10 21:03:43 Iteration 1
+2020/10/10 21:03:44 partition servers into: [1 2 3] [0 4]
+2020/10/10 21:03:45 partition servers into: [0 2 4] [1 3]
+2020/10/10 21:03:46 partition servers into: [0 4] [1 2 3]
+2020/10/10 21:03:47 partition servers into: [0 1 2 3 4] []
+2020/10/10 21:03:48 partition servers into: [1 3 4] [0 2]
+2020/10/10 21:03:54 Iteration 2
+2020/10/10 21:03:55 partition servers into: [0 1 3] [2 4]
+2020/10/10 21:03:56 partition servers into: [1 4] [0 2 3]
+2020/10/10 21:03:57 partition servers into: [] [0 1 2 3 4]
+2020/10/10 21:03:58 partition servers into: [0 3 4] [1 2]
+2020/10/10 21:03:59 partition servers into: [1 2 3 4] [0]
+  ... Passed --  37.3  5  7282  109
+Test: unreliable net, restarts, partitions, many clients, linearizability checks (3A) ...
+2020/10/10 21:04:06 partition servers into: [1 2 4 5] [0 3 6]
+2020/10/10 21:04:07 partition servers into: [0 1 2 3 4 6] [5]
+2020/10/10 21:04:08 partition servers into: [1 4 6] [0 2 3 5]
+2020/10/10 21:04:09 partition servers into: [1 3 4] [0 2 5 6]
+2020/10/10 21:04:10 partition servers into: [1 6] [0 2 3 4 5]
+2020/10/10 21:04:18 partition servers into: [3 4] [0 1 2 5 6]
+2020/10/10 21:04:19 partition servers into: [0 1 3 4 5] [2 6]
+2020/10/10 21:04:20 partition servers into: [1 2 5] [0 3 4 6]
+2020/10/10 21:04:21 partition servers into: [0 1 2 3] [4 5 6]
+2020/10/10 21:04:22 partition servers into: [2 5] [0 1 3 4 6]
+2020/10/10 21:04:29 partition servers into: [0 1 2 4] [3 5 6]
+2020/10/10 21:04:30 partition servers into: [] [0 1 2 3 4 5 6]
+2020/10/10 21:04:31 partition servers into: [5] [0 1 2 3 4 6]
+2020/10/10 21:04:33 partition servers into: [0 1 2 5] [3 4 6]
+2020/10/10 21:04:34 partition servers into: [4 5 6] [0 1 2 3]
+  ... Passed --  35.7  7  8876  213
+PASS
+ok  	src/kvraft	341.859s

@@ -9,7 +9,10 @@ package main
 // Please do not change this file.
 //
 
-import "../mr"
+import (
+	"log"
+	"src/mr"
+)
 import "time"
 import "os"
 import "fmt"
@@ -21,9 +24,10 @@ func main() {
 	}
 
 	m := mr.MakeMaster(os.Args[1:], 10)
+
 	for m.Done() == false {
 		time.Sleep(time.Second)
 	}
-
+	log.Println("master dump")
 	time.Sleep(time.Second)
 }

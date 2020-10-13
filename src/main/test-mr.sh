@@ -42,6 +42,7 @@ timeout -k 2s 180s ../mrmaster ../pg*txt &
 # give the master time to create the sockets.
 sleep 1
 
+echo '***' Starting mrworker test.
 # start multiple workers.
 timeout -k 2s 180s ../mrworker ../../mrapps/wc.so &
 timeout -k 2s 180s ../mrworker ../../mrapps/wc.so &
