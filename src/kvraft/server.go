@@ -40,6 +40,10 @@ type KVServer struct {
 	opChs	map[int]Op
 	ackCh	map[int] chan Op
 	indexTotal	int
+
+	// snapShot
+	snapshot raft.SnapShot
+	lastApplied int
 }
 
 
@@ -65,7 +69,10 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 func (kv *KVServer) Kill() {
 	atomic.StoreInt32(&kv.dead, 1)
 	kv.rf.Kill()
-	// Your code here, if desired.
+	// 不加就会卡在index 153
+	//kv.mu.Lock()
+	//close(kv.applyCh)
+	//kv.mu.Unlock()
 }
 
 func (kv *KVServer) killed() bool {
@@ -88,6 +95,7 @@ func (kv *KVServer) killed() bool {
 // for any long-running work.
 //
 func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister, maxraftstate int) *KVServer {
+	DPrintf("server: [%d] start!", me)
 	// call labgob.Register on structures you want
 	// Go's RPC library to marshall/unmarshall.
 	labgob.Register(Op{})
@@ -97,18 +105,21 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	kv.maxraftstate = maxraftstate
 
 	// You may need initialization code here.
-	kv.applyCh = make(chan raft.ApplyMsg)
-	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
+	kv.applyCh = make(chan raft.ApplyMsg, 1)
+
 
 
 	// You may need initialization code here.
 	kv.indexTotal = 0
 	kv.kvDB = make(map[string]string)
 	kv.maxSeriesID = make(map[int64]int)
-	kv.opChs = make(map[int]Op)
 	kv.ackCh = make(map[int]chan Op)
+	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
+	kv.lastApplied = 0
 	go kv.kvDBUpdate() // only way to change DB
-	DPrintf("server: [%d] start!", kv.me)
+	//kv.rf.InitInstallSnapshotToApp()
+	//kv.rf.InitThread()
+	go kv.snapshotThread()
 	return kv
 }
 
@@ -117,6 +128,7 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 func (kv *KVServer) ClientRequest(args *RequestArgs, reply *RequestReply) {
 
 	// Request Outdated
+	DPrintf("server: [%d] receive  ClientRequest from clientID: %d seriesID: %d", kv.me, args.ClientID, args.SeriesID)
 	kv.mu.Lock()
 	if kv.maxSeriesID[args.ClientID] >= args.SeriesID {
 		if args.OpType == GET {
@@ -127,9 +139,11 @@ func (kv *KVServer) ClientRequest(args *RequestArgs, reply *RequestReply) {
 			}
 		}
 		reply.Err = OK
+
 		kv.mu.Unlock()
 		return
 	} else {
+
 		kv.mu.Unlock()
 	}
 
@@ -147,14 +161,15 @@ func (kv *KVServer) ClientRequest(args *RequestArgs, reply *RequestReply) {
 		reply.Err = ErrWrongLeader
 		return
 	}
-	DPrintf("server: [%d] receive ClientRequest from clientID: %d seriesID: %d index: %d", kv.me, args.ClientID, args.SeriesID, index)
+
 	kv.mu.Lock()
 	ch := make(chan Op)
-	//if _, ok := kv.ackCh[index]; ok != true {
-	//	kv.ackCh[index] = ch
-	//}
 	kv.ackCh[index] = ch
+
 	kv.mu.Unlock()
+	//DPrintf("server: [%d] receive ClientRequest from clientID: %d seriesID: %d index: %d", kv.me, args.ClientID, args.SeriesID, index)
+
+
 	// 直接用kv.ackCh[index]会出现data race
 	DPrintf("server: [%d] waitFor reply ClientRequest from clientID: %d seriesID: %d index: %d", kv.me, args.ClientID, args.SeriesID, index)
 	select {
@@ -165,13 +180,22 @@ func (kv *KVServer) ClientRequest(args *RequestArgs, reply *RequestReply) {
 			reply.Err = ErrWrongLeader
 			return
 		}
-		go kv.closeCh(index)
+
+		kv.mu.Lock()
+		kv.closeCh(index)
+		kv.mu.Unlock()
 		break
 	case <-time.After(time.Second * 2):
 		// 无法提交, figure 8
-		DPrintf("server: [%d] receive ClientRequest from clientID: %d seriesID: %d index: %d timeout!!!", kv.me, args.ClientID, args.SeriesID, index)
+
 		reply.Err = ErrWrongLeader
-		go kv.closeCh(index) // time out后必须删掉这个channel，否则kvUpdate还会往这个管道发消息，但是却收不到
+		if kv.killed() == true {
+			return
+		}
+		DPrintf("server: [%d] receive ClientRequest from clientID: %d seriesID: %d index: %d timeout!!!", kv.me, args.ClientID, args.SeriesID, index)
+		kv.mu.Lock()
+		kv.closeCh(index) // time out后必须删掉这个channel，否则kvUpdate还会往这个管道发消息，但是却收不到
+		kv.mu.Unlock()
 		return
 	}
 
@@ -199,48 +223,113 @@ func (kv *KVServer) IsLeader(args *FindLeaderArgs, reply *FindLeaderReply) {
 }
 
 func (kv *KVServer) kvDBUpdate() {
-	for {
-		applyMsg := <- kv.applyCh
-		DPrintf("serverID: [%d] kvDBUpdate get applyMsg: %v", kv.me, applyMsg)
-		kv.mu.Lock() // 产生死锁了 一次性提交了多个数据
-
-		op := applyMsg.Command.(Op)
-		if seq, ok := kv.maxSeriesID[op.ClientID]; ok != true || seq < op.SeriesID {
-			kv.maxSeriesID[op.ClientID] = op.SeriesID
-			switch op.OpType {
-			case PUT:
-				kv.kvDB[op.Key] = op.Value
-				break
-			case APPEND:
-				if _, ok := kv.kvDB[op.Key]; ok {
-					oldV := kv.kvDB[op.Key]
-					var buffer bytes.Buffer
-					buffer.WriteString(oldV)
-					buffer.WriteString(op.Value)
-					kv.kvDB[op.Key] = buffer.String()
+	for kv.killed() == false {
+		select {
+			case applyMsg := <-kv.applyCh:
+				DPrintf("serverID: [%d] kvDBUpdate get applyMsg: %v", kv.me, applyMsg)
+				if applyMsg.CommandValid == true {
+					kv.mu.Lock()
+					kv.lastApplied = applyMsg.CommandIndex
+					DPrintf("serverID: [%d] kvDBUpdate get applyMsg lock: %v", kv.me, applyMsg)
+					op := applyMsg.Command.(Op)
+					if seq, ok := kv.maxSeriesID[op.ClientID]; ok != true || seq < op.SeriesID {
+						kv.maxSeriesID[op.ClientID] = op.SeriesID
+						switch op.OpType {
+						case PUT:
+							kv.kvDB[op.Key] = op.Value
+							//log.Printf("serverId: [%d] Put key: %s map: %s index: %d ", kv.me, op.Key, kv.kvDB[op.Key],kv.lastApplied)
+						case APPEND:
+							if _, ok := kv.kvDB[op.Key]; ok {
+								oldV := kv.kvDB[op.Key]
+								var buffer bytes.Buffer
+								buffer.WriteString(oldV)
+								buffer.WriteString(op.Value)
+								kv.kvDB[op.Key] = buffer.String()
+							} else {
+								kv.kvDB[op.Key] = op.Value
+							}
+							//log.Printf("serverId: [%d] Append index: %d key: %s value: %s map: %s", kv.me, kv.lastApplied, op.Key, op.Value, kv.kvDB[op.Key])
+						case GET:
+							//log.Printf("serverId: [%d] Get  key: %s index: %d", kv.me,  op.Key, kv.lastApplied)
+						}
+						//DPrintf("serverID: [%d] updateDB index: %d Type: %d map[%v]: %v kv.maxSeriesID[%d]: %d total: %d", kv.me, applyMsg.CommandIndex, op.OpType, op.Key, op.Value, op.ClientID, kv.maxSeriesID[op.ClientID], kv.indexTotal)
+					}
+					// 即使是重复消息，也要发回去channel，代表已经受理
+					if _, ok := kv.ackCh[applyMsg.CommandIndex]; ok {
+						DPrintf("serverID: [%d] kvDBUpdate send to channel: %v", kv.me, applyMsg)
+						kv.ackCh[applyMsg.CommandIndex] <- op
+					} else {
+						DPrintf("serverID: [%d] updateDB channel not create index: %d Type: %d map[%v]: %v kv.maxSeriesID[%d]: %d total: %d", kv.me, applyMsg.CommandIndex, op.OpType, op.Key, op.Value, op.ClientID, kv.maxSeriesID[op.ClientID], kv.indexTotal)
+					}
+					kv.indexTotal++
+					DPrintf("serverID: [%d] updateDB finish Op index: %d Type: %d map[%v]: %v kv.maxSeriesID[%d]: %d total: %d", kv.me, applyMsg.CommandIndex, op.OpType, op.Key, kv.kvDB[op.Key], op.ClientID, kv.maxSeriesID[op.ClientID], kv.indexTotal)
+					kv.mu.Unlock()
 				} else {
-					kv.kvDB[op.Key] = op.Value
+					kv.mu.Lock()
+					if applyMsg.Snapshot == nil || len(applyMsg.Snapshot) < 1 {
+						DPrintf("kv.me: [%d] data == nil || data == nil || len(data) < 1 applyMsg: %v", kv.me, applyMsg)
+						kv.kvDB = make(map[string]string)
+						kv.maxSeriesID = make(map[int64]int)
+						kv.lastApplied = applyMsg.CommandIndex
+					} else {
+						kv.lastApplied = applyMsg.CommandIndex
+						r := bytes.NewBuffer(applyMsg.Snapshot)
+						d := labgob.NewDecoder(r)
+						if d.Decode(&kv.kvDB) != nil ||
+							d.Decode(&kv.maxSeriesID) != nil {
+							log.Fatalf("kv.me: [%d] install snapshot decode error", kv.me)
+						}
+						for k,v := range kv.kvDB {
+							log.Printf("serverId: [%d] key: %s value: %s", kv.me, k, v)
+						}
+						log.Printf("serverId: [%d] installSnapshot finish len(applyMsg.Snapshot): %d kv.lastApplied: %d", kv.me, len(applyMsg.Snapshot), kv.lastApplied)
+					}
+					kv.mu.Unlock()
 				}
-				break
-			}
-
-			if _, ok := kv.ackCh[applyMsg.CommandIndex]; ok {
-				DPrintf("serverID: [%d] kvDBUpdate send to channel: %v", kv.me, applyMsg)
-				kv.ackCh[applyMsg.CommandIndex] <- op
-			} else {
-				DPrintf("serverID: [%d] updateDB channel not create index: %d Type: %d map[%v]: %v kv.maxSeriesID[%d]: %d total: %d", kv.me, applyMsg.CommandIndex, op.OpType, op.Key, op.Value, op.ClientID, kv.maxSeriesID[op.ClientID], kv.indexTotal)
-			}
-			kv.indexTotal++
-			DPrintf("serverID: [%d] updateDB index: %d Type: %d map[%v]: %v kv.maxSeriesID[%d]: %d total: %d", kv.me, applyMsg.CommandIndex, op.OpType, op.Key, op.Value, op.ClientID, kv.maxSeriesID[op.ClientID], kv.indexTotal)
 		}
-		DPrintf("serverID: [%d] updateDB finish Op index: %d Type: %d map[%v]: %v kv.maxSeriesID[%d]: %d total: %d", kv.me, applyMsg.CommandIndex, op.OpType, op.Key, op.Value, op.ClientID, kv.maxSeriesID[op.ClientID], kv.indexTotal)
-		kv.mu.Unlock()
 	}
 }
 
 func (kv *KVServer) closeCh(index int){
-	kv.mu.Lock()
-	defer kv.mu.Unlock()
+	if kv.ackCh[index] == nil {
+		return
+	}
 	close(kv.ackCh[index])
 	delete(kv.ackCh, index)
+}
+
+// snapshot
+
+func (kv *KVServer) generateSnapshot() {
+	kv.snapshot.Kv = DeepCopy(kv.kvDB).(map[string]string)
+	kv.snapshot.MaxSeriesID = DeepCopy(kv.maxSeriesID).(map[int64]int)
+}
+
+func (kv *KVServer) snapshotThread() {
+	for kv.killed() == false {
+
+		var data []byte
+		var lasIncludeIndex int
+		if kv.maxraftstate != -1 && kv.rf.ShouldSnapshot(kv.maxraftstate) == true {
+			kv.mu.Lock() // 10.16: 放外面会死锁,调了一天
+			//DPrintf("serverId: [%d] begin snapshot", kv.me)
+
+			lasIncludeIndex = kv.lastApplied
+			w := new(bytes.Buffer)
+			e := labgob.NewEncoder(w)
+			e.Encode(kv.kvDB)
+			e.Encode(kv.maxSeriesID)
+			data = w.Bytes()
+			//kv.rf.SnapshotCh <- kv.snapshot
+			//DPrintf("serverId: [%d] finish snapshot", kv.me)
+			//log.Printf("serverId: [%d] snapshotThread lastApplied: %d", kv.me, kv.lastApplied)
+			kv.mu.Unlock()
+		}
+
+		if data != nil {
+
+			kv.rf.LogTruncate(data, lasIncludeIndex)
+		}
+		time.Sleep(time.Millisecond * 30)
+	}
 }

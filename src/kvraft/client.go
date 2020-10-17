@@ -158,18 +158,17 @@ func (ck *Clerk) SendRequestRPC(key string, value string, op int) (bool, string)
 				ck.mu.Unlock()
 			}
 		} else {
-			// 连不上那个server了
 			ck.mu.Lock()
 			ck.leaderID = (ck.leaderID+1) % len(ck.servers)
 			ck.mu.Unlock()
 		}
-		time.Sleep(300 * time.Millisecond)
+		//time.Sleep(100 * time.Millisecond)
 	}
 }
 
 // send get put append RPC
 func (ck *Clerk) _sendRequestRPC(server int, args *RequestArgs, reply *RequestReply) bool {
-	DPrintf("clientID: [%d] _sendRequestRPC seriesID: %d type: %v key: %v value: %v server: %d", ck.selfID, args.SeriesID, args.OpType, args.Key, args.Value, server)
+	//DPrintf("clientID: [%d] _sendRequestRPC seriesID: %d type: %v key: %v value: %v server: %d", ck.selfID, args.SeriesID, args.OpType, args.Key, args.Value, server)
 	ok := ck.servers[server].Call("KVServer.ClientRequest",args, reply)
 	return ok
 }

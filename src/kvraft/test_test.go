@@ -21,17 +21,20 @@ const linearizabilityCheckTimeout = 1 * time.Second
 
 // get/put/putappend that keep counts
 func Get(cfg *config, ck *Clerk, key string) string {
+	//log.Printf("Get key: %v", key)
 	v := ck.Get(key)
 	cfg.op()
 	return v
 }
 
 func Put(cfg *config, ck *Clerk, key string, value string) {
+	//log.Printf("Put key: [%v] value: [%v]", key, value)
 	ck.Put(key, value)
 	cfg.op()
 }
 
 func Append(cfg *config, ck *Clerk, key string, value string) {
+	//log.Printf("Append key: [%v] value: [%v]", key, value)
 	ck.Append(key, value)
 	cfg.op()
 }
@@ -193,7 +196,7 @@ func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash
 		clnts[i] = make(chan int)
 	}
 	for i := 0; i < 3; i++ {
-		log.Printf("Iteration %v\n", i)
+		//log.Printf("Iteration %v\n", i)
 		atomic.StoreInt32(&done_clients, 0)
 		atomic.StoreInt32(&done_partitioner, 0)
 		go spawn_clients_and_wait(t, cfg, nclients, func(cli int, myck *Clerk, t *testing.T) {
@@ -246,14 +249,14 @@ func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash
 		}
 
 		if crash {
-			// log.Printf("shutdown servers\n")
+			log.Printf("shutdown servers\n")
 			for i := 0; i < nservers; i++ {
 				cfg.ShutdownServer(i)
 			}
 			// Wait for a while for servers to shutdown, since
 			// shutdown isn't a real crash and isn't instantaneous
 			time.Sleep(electionTimeout)
-			// log.Printf("restart servers\n")
+			log.Printf("restart servers\n")
 			// crash and re-start all
 			for i := 0; i < nservers; i++ {
 				cfg.StartServer(i)
@@ -622,6 +625,7 @@ func TestPersistPartitionUnreliableLinearizable3A(t *testing.T) {
 // even if minority doesn't respond.
 //
 func TestSnapshotRPC3B(t *testing.T) {
+	DPrintf("TestSnapshotRPC3B")
 	const nservers = 3
 	maxraftstate := 1000
 	cfg := make_config(t, nservers, false, maxraftstate)
@@ -690,6 +694,7 @@ func TestSnapshotSize3B(t *testing.T) {
 	cfg.begin("Test: snapshot size is reasonable (3B)")
 
 	for i := 0; i < 200; i++ {
+		log.Println(i)
 		Put(cfg, ck, "x", "0")
 		check(cfg, t, ck, "x", "0")
 		Put(cfg, ck, "x", "1")
@@ -726,7 +731,7 @@ func TestSnapshotUnreliable3B(t *testing.T) {
 	GenericTest(t, "3B", 5, true, false, false, 1000)
 }
 
-func TestSnapshotUnreliableRecover3B(t *testing.T) {
+func TestSnapshotRecoverUnreliable3B(t *testing.T) {
 	// Test: unreliable net, restarts, snapshots, many clients (3B) ...
 	GenericTest(t, "3B", 5, true, true, false, 1000)
 }
